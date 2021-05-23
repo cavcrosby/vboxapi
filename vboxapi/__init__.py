@@ -60,7 +60,7 @@ if VBoxSdkDir is None:
     if platform.system() == 'Darwin':
         VBoxSdkDir = '/Applications/VirtualBox.app/Contents/MacOS/sdk'
     else: # Will be set by the installer
-        VBoxSdkDir = ""
+        VBoxSdkDir = "%VBOX_SDK_PATH%"
 else:
     VBoxSdkDir = os.path.abspath(VBoxSdkDir)
 
