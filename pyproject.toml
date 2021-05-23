@@ -1,5 +1,7 @@
 [tool.poetry]
-name = "vboxapi"
+# publishing to PyPI is not a priority at the moment, so use 'local' name
+name = "vboxapi-cavcrosby"
+# should follow the version of VirtualBox it intends to target
 version = "6.1.22"
 description = "Python interface to VirtualBox"
 homepage = "http://www.virtualbox.org"
@@ -10,6 +12,9 @@ authors = [
     "Oracle Corp. <vbox-dev@virtualbox.org>",
     "Conner Crosby <conner@cavcrosby.tech>"
 ]
+# NOTE: webservice might be included in the future, need to work around the
+# dinosaur SOAP package recommended (python-zsi, provides wsdl2py but
+# generates to py2)
 packages = [
     { include = "vboxapi" },
     { include = "xpcom" },

@@ -65,7 +65,7 @@ def patchWith(f, vboxInstallPath):
     os.rename(newFile, f)
 
 
-def main(argv):
+def main():
     """ """
     if platform.system() == "Windows":
         cleanupComCache()
@@ -86,4 +86,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()

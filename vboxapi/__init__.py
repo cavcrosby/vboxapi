@@ -52,7 +52,7 @@ if VBoxBinDir is None:
     if platform.system() == 'Darwin':
         VBoxBinDir = '/Applications/VirtualBox.app/Contents/MacOS'
     else: # Will be set by the installer
-        VBoxBinDir = "/usr/lib/virtualbox/"
+        VBoxBinDir = "%VBOX_INSTALL_PATH%"
 else:
     VBoxBinDir = os.path.abspath(VBoxBinDir)
 
