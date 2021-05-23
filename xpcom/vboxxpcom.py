@@ -1,5 +1,5 @@
 """
-Copyright (C) 2008-2016 Oracle Corporation
+Copyright (C) 2008-2021 Oracle Corporation, Conner Crosby
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -20,8 +20,9 @@ terms and conditions of either the GPL or the CDDL or both.
 """
 
 import xpcom
-import sys
 import platform
+import sys
+import os
 
 #
 # This code overcomes somewhat unlucky feature of Python, where it searches
@@ -30,13 +31,13 @@ import platform
 #
 
 _asVBoxPythons = [
-    'VBoxPython' + str(sys.version_info[0]) + '_' + str(sys.version_info[1]),
-    'VBoxPython' + str(sys.version_info[0]),
-    'VBoxPython'
+    "VBoxPython" + str(sys.version_info[0]) + "_" + str(sys.version_info[1]),
+    "VBoxPython" + str(sys.version_info[0]),
+    "VBoxPython",
 ]
 
 # For Python 3.2 and later use the right ABI flag suffix for the module.
-if sys.hexversion >= 0x030200f0 and sys.abiflags:
+if sys.hexversion >= 0x030200F0 and sys.abiflags:
     _asNew = []
     for sCandidate in _asVBoxPythons:
         if sCandidate[-1:].isdigit():
@@ -48,8 +49,14 @@ if sys.hexversion >= 0x030200f0 and sys.abiflags:
 
 # On platforms where we ship both 32-bit and 64-bit API bindings, we have to
 # look for the right set if we're a 32-bit process.
-if platform.system() in [ 'SunOS', ] and sys.maxsize <= 2**32:
-    _asNew = [ sCandidate + '_x86' for sCandidate in _asVBoxPythons ]
+if (
+    platform.system()
+    in [
+        "SunOS",
+    ]
+    and sys.maxsize <= 2 ** 32
+):
+    _asNew = [sCandidate + "_x86" for sCandidate in _asVBoxPythons]
     _asNew.extend(_asVBoxPythons)
     _asVBoxPythons = _asNew
     del _asNew
@@ -58,25 +65,27 @@ if platform.system() in [ 'SunOS', ] and sys.maxsize <= 2**32:
 # VirtualBox installation.
 ## @todo Edit this at build time to the actual VBox location set in the make files.
 ## @todo We know the location for most hardened builds, not just darwin!
-if platform.system() == 'Darwin':
-    sys.path.append('/Applications/VirtualBox.app/Contents/MacOS')
+if platform.system() == "Darwin":
+    sys.path.append("/Applications/VirtualBox.app/Contents/MacOS")
 
 _oVBoxPythonMod = None
 for m in _asVBoxPythons:
     try:
-        _oVBoxPythonMod =  __import__(m)
+        _oVBoxPythonMod = __import__(m)
         break
     except Exception as x:
-        print('m=%s x=%s' % (m, x))
-    #except:
+        print("m=%s x=%s" % (m, x))
+    # except:
     #    pass
 
-if platform.system() == 'Darwin':
-    sys.path.remove('/Applications/VirtualBox.app/Contents/MacOS')
+if platform.system() == "Darwin":
+    sys.path.remove("/Applications/VirtualBox.app/Contents/MacOS")
 
 if _oVBoxPythonMod == None:
-    raise Exception('Cannot find VBoxPython module (tried: %s)' % (', '.join(_asVBoxPythons),))
+    raise Exception(
+        "Cannot find VBoxPython module (tried: %s)"
+        % (", ".join(_asVBoxPythons),)
+    )
 
-sys.modules['xpcom._xpcom'] = _oVBoxPythonMod
+sys.modules["xpcom._xpcom"] = _oVBoxPythonMod
 xpcom._xpcom = _oVBoxPythonMod
-
