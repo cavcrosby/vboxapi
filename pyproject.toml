@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "vboxapi"
+version = "6.1.22"
+description = "Python interface to VirtualBox"
+homepage = "http://www.virtualbox.org"
+repository = "https://github.com/cavcrosby/vboxapi"
+license = "GPL-2.0-only"
+readme = "README.md"
+authors = [
+    "Oracle Corp. <vbox-dev@virtualbox.org>",
+    "Conner Crosby <conner@cavcrosby.tech>"
+]
+packages = [
+    { include = "vboxapi" },
+    { include = "xpcom" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.6.2"
+
+[tool.poetry.dev-dependencies]
+black = "^21.5b1"
+flake8 = "^3.9.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

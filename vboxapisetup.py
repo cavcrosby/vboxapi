@@ -1,5 +1,5 @@
 """
-Copyright (C) 2009-2020 Oracle Corporation
+Copyright (C) 2009-2021 Oracle Corporation, Conner Crosby
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -18,72 +18,72 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
+# Standard Library Imports
+import os
+import shutil
+import sys
+import subprocess
+import platform
+from distutils.sysconfig import get_python_lib
 
-import os,sys
-from distutils.core import setup
+# Third Party Imports
+
+# Local Application Imports
+
 
 def cleanupComCache():
-    import shutil
-    from distutils.sysconfig import get_python_lib
-    comCache1 = os.path.join(get_python_lib(), 'win32com', 'gen_py')
-    comCache2 = os.path.join(os.environ.get("TEMP", "c:\\tmp"), 'gen_py')
-    print("Cleaning COM cache at",comCache1,"and",comCache2)
+    """ """
+    comCache1 = os.path.join(get_python_lib(), "win32com", "gen_py")
+    comCache2 = os.path.join(os.environ.get("TEMP", "c:\\tmp"), "gen_py")
+    print("Cleaning COM cache at", comCache1, "and", comCache2)
     shutil.rmtree(comCache1, True)
     shutil.rmtree(comCache2, True)
 
-def patchWith(file,install,sdk):
-    newFile=file + ".new"
-    install=install.replace("\\", "\\\\")
+
+def patchWith(f, vboxInstallPath):
+    """ """
+    newFile = f"{f}-temp"
+    vboxInstallPath = vboxInstallPath.replace("\\", "\\\\")
     try:
         os.remove(newFile)
     except:
         pass
-    oldF = open(file, 'r')
-    newF = open(newFile, 'w')
-    for line in oldF:
-        line = line.replace("%VBOX_INSTALL_PATH%", install)
-        line = line.replace("%VBOX_SDK_PATH%", sdk)
-        newF.write(line)
-    newF.close()
-    oldF.close()
+    oldFh = open(f, "r")
+    newFh = open(newFile, "w")
+    for line in oldFh:
+        line = line.replace("%VBOX_INSTALL_PATH%", vboxInstallPath)
+        line = line.replace(
+            "%VBOX_SDK_PATH%", os.environ.get("VBOX_SDK_PATH", default="")
+        )
+        newFh.write(line)
+    newFh.close()
+    oldFh.close()
     try:
-        os.remove(file)
+        os.remove(f)
     except:
         pass
-    os.rename(newFile, file)
+    os.rename(newFile, f)
 
-# See http://docs.python.org/distutils/index.html
+
 def main(argv):
-    vboxDest = os.environ.get("VBOX_MSI_INSTALL_PATH", None)
-    if vboxDest is None:
-        vboxDest = os.environ.get('VBOX_INSTALL_PATH', None)
-        if vboxDest is None:
-            raise Exception("No VBOX_INSTALL_PATH defined, exiting")
-
-    vboxVersion = os.environ.get("VBOX_VERSION", None)
-    if vboxVersion is None:
-        # Should we use VBox version for binding module versioning?
-        vboxVersion = "1.0"
-
-    import platform
-
-    if platform.system() == 'Windows':
+    """ """
+    if platform.system() == "Windows":
         cleanupComCache()
 
-    # Darwin: Patched before installation. Modifying bundle is not allowed, breaks signing and upsets gatekeeper.
-    if platform.system() != 'Darwin':
-        vboxSdkDest = os.path.join(vboxDest, "sdk")
-        patchWith(os.path.join(os.path.dirname(sys.argv[0]), 'vboxapi', '__init__.py'), vboxDest, vboxSdkDest)
+    vboxInstallPath = os.environ.get("VBOX_INSTALL_PATH", None)
+    poetryBinPath = os.environ.get("POETRY_BIN_PATH", None)
+    if vboxInstallPath is None:
+        raise Exception("No VBOX_INSTALL_PATH defined, exiting")
+    if poetryBinPath is None:
+        raise Exception("No POETRY_BIN_PATH defined, exiting")
+    patchWith(
+        os.path.join(os.getcwd(), "vboxapi", "__init__.py"),
+        vboxInstallPath,
+    )
+    subprocess.run(
+        [poetryBinPath, "install"],
+    )
 
-    setup(name='vboxapi',
-          version=vboxVersion,
-          description='Python interface to VirtualBox',
-          author='Oracle Corp.',
-          author_email='vbox-dev@virtualbox.org',
-          url='http://www.virtualbox.org',
-          packages=['vboxapi']
-          )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv)
-

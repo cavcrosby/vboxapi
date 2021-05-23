@@ -60,7 +60,7 @@ if VBoxSdkDir is None:
     if platform.system() == 'Darwin':
         VBoxSdkDir = '/Applications/VirtualBox.app/Contents/MacOS/sdk'
     else: # Will be set by the installer
-        VBoxSdkDir = "/usr/lib/virtualbox/sdk"
+        VBoxSdkDir = ""
 else:
     VBoxSdkDir = os.path.abspath(VBoxSdkDir)
 
@@ -746,7 +746,6 @@ class PlatformXPCOM(PlatformBase):
 
     def __init__(self, dParams):
         PlatformBase.__init__(self, dParams)
-        sys.path.append(VBoxSdkDir + '/bindings/xpcom/python/')
         import xpcom.vboxxpcom
         import xpcom
         import xpcom.components
