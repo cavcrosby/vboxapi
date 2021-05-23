@@ -81,7 +81,7 @@ def main():
         vboxInstallPath,
     )
     subprocess.run(
-        [poetryBinPath, "install"],
+        [poetryBinPath, "install", "--no-dev"],
     )
 
 
