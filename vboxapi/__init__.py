@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-# $Id: vboxapi.py 136274 2020-02-25 18:04:45Z bird $
+# $Id: vboxapi.py 136275 2021-05-23 22:25 cavcrosby
 """
 VirtualBox Python API Glue.
 """
 
-__copyright__ = \
-"""
-Copyright (C) 2009-2020 Oracle Corporation
+__copyright__ = """
+Copyright (C) 2009-2021 Oracle Corporation, Conner Crosby
 
 This file is part of VirtualBox Open Source Edition (OSE), as
 available from http://www.virtualbox.org. This file is free software;
@@ -25,7 +24,7 @@ CDDL are applicable instead of those of the GPL.
 You may elect to license modified versions of this file under the
 terms and conditions of either the GPL or the CDDL or both.
 """
-__version__ = "$Revision: 136274 $"
+__version__ = "$Revision: 136275 $"
 
 
 # Note! To set Python bitness on OSX use 'export VERSIONER_PYTHON_PREFER_32_BIT=yes'
@@ -45,21 +44,31 @@ if sys.version_info >= (3, 0):
 # Globals, environment and sys.path changes.
 #
 import platform
+
 VBoxBinDir = os.environ.get("VBOX_PROGRAM_PATH", None)
 VBoxSdkDir = os.environ.get("VBOX_SDK_PATH", None)
 
 if VBoxBinDir is None:
-    if platform.system() == 'Darwin':
-        VBoxBinDir = '/Applications/VirtualBox.app/Contents/MacOS'
-    else: # Will be set by the installer
-        VBoxBinDir = "%VBOX_INSTALL_PATH%"
+    if platform.system() == "Darwin":
+        VBoxBinDir = "/Applications/VirtualBox.app/Contents/MacOS"
+    else:  # Will be set by the installer
+        # NOTES: if the platform is some *nix version, though this is hand wavy
+        # and not bullet proof. At this point we can just assume a default if
+        # the user does not run this script manually to install the package.
+        if (
+            platform.system() != "Windows"
+            and os.environ.get("VBOX_INSTALL_PATH", None) is None
+        ):
+            VBoxBinDir = "/usr/lib/virtualbox/"
+        else:
+            VBoxBinDir = "%VBOX_INSTALL_PATH%"
 else:
     VBoxBinDir = os.path.abspath(VBoxBinDir)
 
 if VBoxSdkDir is None:
-    if platform.system() == 'Darwin':
-        VBoxSdkDir = '/Applications/VirtualBox.app/Contents/MacOS/sdk'
-    else: # Will be set by the installer
+    if platform.system() == "Darwin":
+        VBoxSdkDir = "/Applications/VirtualBox.app/Contents/MacOS/sdk"
+    else:  # Will be set by the installer
         VBoxSdkDir = "%VBOX_SDK_PATH%"
 else:
     VBoxSdkDir = os.path.abspath(VBoxSdkDir)
@@ -76,7 +85,7 @@ from .VirtualBox_constants import VirtualBoxReflectionInfo
 
 
 class PerfCollector(object):
-    """ This class provides a wrapper over IPerformanceCollector in order to
+    """This class provides a wrapper over IPerformanceCollector in order to
     get more 'pythonic' interface.
 
     To begin collection of metrics use setup() method.
@@ -89,32 +98,28 @@ class PerfCollector(object):
     """
 
     def __init__(self, mgr, vbox):
-        """ Initializes the instance.
-
-        """
+        """Initializes the instance."""
         self.mgr = mgr
-        self.isMscom = (mgr.type == 'MSCOM')
+        self.isMscom = mgr.type == "MSCOM"
         self.collector = vbox.performanceCollector
 
     def setup(self, names, objects, period, nsamples):
-        """ Discards all previously collected values for the specified
+        """Discards all previously collected values for the specified
         metrics, sets the period of collection and the number of retained
         samples, enables collection.
         """
         self.collector.setupMetrics(names, objects, period, nsamples)
 
     def enable(self, names, objects):
-        """ Resumes metric collection for the specified metrics.
-        """
+        """Resumes metric collection for the specified metrics."""
         self.collector.enableMetrics(names, objects)
 
     def disable(self, names, objects):
-        """ Suspends metric collection for the specified metrics.
-        """
+        """Suspends metric collection for the specified metrics."""
         self.collector.disableMetrics(names, objects)
 
     def query(self, names, objects):
-        """ Retrieves collected metric values as well as some auxiliary
+        """Retrieves collected metric values as well as some auxiliary
         information. Returns an array of dictionaries, one dictionary per
         metric. Each dictionary contains the following entries:
         'name': metric name
@@ -127,27 +132,61 @@ class PerfCollector(object):
         # Get around the problem with input arrays returned in output
         # parameters (see #3953) for MSCOM.
         if self.isMscom:
-            (values, names, objects, names_out, objects_out, units, scales, sequence_numbers,
-             indices, lengths) = self.collector.queryMetricsData(names, objects)
+            (
+                values,
+                names,
+                objects,
+                names_out,
+                objects_out,
+                units,
+                scales,
+                sequence_numbers,
+                indices,
+                lengths,
+            ) = self.collector.queryMetricsData(names, objects)
         else:
-            (values, names_out, objects_out, units, scales, sequence_numbers,
-             indices, lengths) = self.collector.queryMetricsData(names, objects)
+            (
+                values,
+                names_out,
+                objects_out,
+                units,
+                scales,
+                sequence_numbers,
+                indices,
+                lengths,
+            ) = self.collector.queryMetricsData(names, objects)
         out = []
         for i in xrange(0, len(names_out)):
             scale = int(scales[i])
             if scale != 1:
-                fmt = '%.2f%s'
+                fmt = "%.2f%s"
             else:
-                fmt = '%d %s'
-            out.append({
-                'name': str(names_out[i]),
-                'object': str(objects_out[i]),
-                'unit': str(units[i]),
-                'scale': scale,
-                'values': [int(values[j]) for j in xrange(int(indices[i]), int(indices[i]) + int(lengths[i]))],
-                'values_as_string': '[' + ', '.join([fmt % (int(values[j]) / scale, units[i]) for j in
-                                                     xrange(int(indices[i]), int(indices[i]) + int(lengths[i]))]) + ']'
-            })
+                fmt = "%d %s"
+            out.append(
+                {
+                    "name": str(names_out[i]),
+                    "object": str(objects_out[i]),
+                    "unit": str(units[i]),
+                    "scale": scale,
+                    "values": [
+                        int(values[j])
+                        for j in xrange(
+                            int(indices[i]), int(indices[i]) + int(lengths[i])
+                        )
+                    ],
+                    "values_as_string": "["
+                    + ", ".join(
+                        [
+                            fmt % (int(values[j]) / scale, units[i])
+                            for j in xrange(
+                                int(indices[i]),
+                                int(indices[i]) + int(lengths[i]),
+                            )
+                        ]
+                    )
+                    + "]",
+                }
+            )
         return out
 
 
@@ -161,13 +200,13 @@ def ComifyName(name):
 ## This is for saving the original DispatchBaseClass __getattr__ and __setattr__
 #  method references.
 _g_dCOMForward = {
-    'getattr': None,
-    'setattr': None,
+    "getattr": None,
+    "setattr": None,
 }
 
 
 def _CustomGetAttr(self, sAttr):
-    """ Our getattr replacement for DispatchBaseClass. """
+    """Our getattr replacement for DispatchBaseClass."""
     # Fastpath.
     oRet = self.__class__.__dict__.get(sAttr)
     if oRet is not None:
@@ -182,17 +221,17 @@ def _CustomGetAttr(self, sAttr):
 
     # Slow path.
     try:
-        return _g_dCOMForward['getattr'](self, ComifyName(sAttr))
+        return _g_dCOMForward["getattr"](self, ComifyName(sAttr))
     except AttributeError:
-        return _g_dCOMForward['getattr'](self, sAttr)
+        return _g_dCOMForward["getattr"](self, sAttr)
 
 
 def _CustomSetAttr(self, sAttr, oValue):
-    """ Our setattr replacement for DispatchBaseClass. """
+    """Our setattr replacement for DispatchBaseClass."""
     try:
-        return _g_dCOMForward['setattr'](self, ComifyName(sAttr), oValue)
+        return _g_dCOMForward["setattr"](self, ComifyName(sAttr), oValue)
     except AttributeError:
-        return _g_dCOMForward['setattr'](self, sAttr, oValue)
+        return _g_dCOMForward["setattr"](self, sAttr, oValue)
 
 
 class PlatformBase(object):
@@ -221,7 +260,7 @@ class PlatformBase(object):
         return None
 
     def getType(self):
-        """ Returns the platform type (class name sans 'Platform'). """
+        """Returns the platform type (class name sans 'Platform')."""
         return None
 
     def isRemote(self):
@@ -363,7 +402,7 @@ class PlatformBase(object):
             return True
 
         # Fudge for 32-bit signed int conversion.
-        if 0x7fffffff < hrStatus <= 0xffffffff and hrXcpt < 0:
+        if 0x7FFFFFFF < hrStatus <= 0xFFFFFFFF and hrXcpt < 0:
             if (hrStatus - 0x100000000) == hrXcpt:
                 return True
         return False
@@ -394,7 +433,7 @@ class PlatformBase(object):
         Copy everything that looks like error constants from oDst to oSrc.
         """
         for sAttr in dir(oSrc):
-            if sAttr[0].isupper() and (sAttr[1].isupper() or sAttr[1] == '_'):
+            if sAttr[0].isupper() and (sAttr[1].isupper() or sAttr[1] == "_"):
                 oAttr = getattr(oSrc, sAttr)
                 if type(oAttr) is int:
                     setattr(oDst, sAttr, oAttr)
@@ -411,7 +450,7 @@ class PlatformMSCOM(PlatformBase):
     # @remarks Must be updated when the corresponding VirtualBox.xidl bits
     #          are changed.  Fortunately this isn't very often.
     # @{
-    VBOX_TLB_GUID = '{D7569351-1750-46F0-936E-BD127D5BC264}'
+    VBOX_TLB_GUID = "{D7569351-1750-46F0-936E-BD127D5BC264}"
     VBOX_TLB_LCID = 0
     VBOX_TLB_MAJOR = 1
     VBOX_TLB_MINOR = 3
@@ -432,40 +471,58 @@ class PlatformMSCOM(PlatformBase):
         import win32api
         import winerror
         from win32con import DUPLICATE_SAME_ACCESS
-        from win32api import GetCurrentThread, GetCurrentThreadId, DuplicateHandle, GetCurrentProcess
+        from win32api import (
+            GetCurrentThread,
+            GetCurrentThreadId,
+            DuplicateHandle,
+            GetCurrentProcess,
+        )
         import threading
 
         self.winerror = winerror
 
         # Setup client impersonation in COM calls.
         try:
-            pythoncom.CoInitializeSecurity(None,
-                                           None,
-                                           None,
-                                           pythoncom.RPC_C_AUTHN_LEVEL_DEFAULT,
-                                           pythoncom.RPC_C_IMP_LEVEL_IMPERSONATE,
-                                           None,
-                                           pythoncom.EOAC_NONE,
-                                           None)
+            pythoncom.CoInitializeSecurity(
+                None,
+                None,
+                None,
+                pythoncom.RPC_C_AUTHN_LEVEL_DEFAULT,
+                pythoncom.RPC_C_IMP_LEVEL_IMPERSONATE,
+                None,
+                pythoncom.EOAC_NONE,
+                None,
+            )
         except:
-            _, oXcpt, _ = sys.exc_info();
-            if isinstance(oXcpt, pythoncom.com_error) and self.xcptGetStatus(oXcpt) == -2147417831: # RPC_E_TOO_LATE
-                print("Warning: CoInitializeSecurity was already called");
+            _, oXcpt, _ = sys.exc_info()
+            if (
+                isinstance(oXcpt, pythoncom.com_error)
+                and self.xcptGetStatus(oXcpt) == -2147417831
+            ):  # RPC_E_TOO_LATE
+                print("Warning: CoInitializeSecurity was already called")
             else:
-                print("Warning: CoInitializeSecurity failed: ", oXcpt);
+                print("Warning: CoInitializeSecurity failed: ", oXcpt)
 
         # Remember this thread ID and get its handle so we can wait on it in waitForEvents().
         self.tid = GetCurrentThreadId()
         pid = GetCurrentProcess()
-        self.aoHandles = [DuplicateHandle(pid, GetCurrentThread(), pid, 0, 0, DUPLICATE_SAME_ACCESS),] # type: list[PyHANDLE]
+        self.aoHandles = [
+            DuplicateHandle(
+                pid, GetCurrentThread(), pid, 0, 0, DUPLICATE_SAME_ACCESS
+            ),
+        ]  # type: list[PyHANDLE]
 
         # Hack the COM dispatcher base class so we can modify method and
         # attribute names to match those in xpcom.
-        if _g_dCOMForward['setattr'] is None:
-            _g_dCOMForward['getattr'] = DispatchBaseClass.__dict__['__getattr__']
-            _g_dCOMForward['setattr'] = DispatchBaseClass.__dict__['__setattr__']
-            setattr(DispatchBaseClass, '__getattr__', _CustomGetAttr)
-            setattr(DispatchBaseClass, '__setattr__', _CustomSetAttr)
+        if _g_dCOMForward["setattr"] is None:
+            _g_dCOMForward["getattr"] = DispatchBaseClass.__dict__[
+                "__getattr__"
+            ]
+            _g_dCOMForward["setattr"] = DispatchBaseClass.__dict__[
+                "__setattr__"
+            ]
+            setattr(DispatchBaseClass, "__getattr__", _CustomGetAttr)
+            setattr(DispatchBaseClass, "__setattr__", _CustomSetAttr)
 
         # Hack the exception base class so the users doesn't need to check for
         # XPCOM or COM and do different things.
@@ -476,11 +533,13 @@ class PlatformMSCOM(PlatformBase):
         # versioning rules).
         #
         self.flushGenPyCache(win32com.client.gencache)
-        win32com.client.gencache.EnsureDispatch('VirtualBox.Session')
-        win32com.client.gencache.EnsureDispatch('VirtualBox.VirtualBox')
-        win32com.client.gencache.EnsureDispatch('VirtualBox.VirtualBoxClient')
+        win32com.client.gencache.EnsureDispatch("VirtualBox.Session")
+        win32com.client.gencache.EnsureDispatch("VirtualBox.VirtualBox")
+        win32com.client.gencache.EnsureDispatch("VirtualBox.VirtualBoxClient")
 
-        self.oClient = None     ##< instance of client used to support lifetime of VBoxSDS
+        self.oClient = (
+            None  ##< instance of client used to support lifetime of VBoxSDS
+        )
         self.oIntCv = threading.Condition()
         self.fInterrupted = False
 
@@ -500,23 +559,34 @@ class PlatformMSCOM(PlatformBase):
         # version or the result of runnig makepy or gencache manually, but we
         # need to cover it as well.)
         #
-        sName = oGenCache.GetGeneratedFileName(self.VBOX_TLB_GUID, self.VBOX_TLB_LCID,
-                                               self.VBOX_TLB_MAJOR, self.VBOX_TLB_MINOR)
+        sName = oGenCache.GetGeneratedFileName(
+            self.VBOX_TLB_GUID,
+            self.VBOX_TLB_LCID,
+            self.VBOX_TLB_MAJOR,
+            self.VBOX_TLB_MINOR,
+        )
         sGenPath = oGenCache.GetGeneratePath()
         if len(sName) > 36 and len(sGenPath) > 5:
             sTypelibPath = os.path.join(sGenPath, sName)
             if os.path.isdir(sTypelibPath):
                 import shutil
+
                 shutil.rmtree(sTypelibPath, ignore_errors=True)
 
         #
         # Ensure that our typelib is valid.
         #
-        return oGenCache.EnsureModule(self.VBOX_TLB_GUID, self.VBOX_TLB_LCID, self.VBOX_TLB_MAJOR, self.VBOX_TLB_MINOR)
+        return oGenCache.EnsureModule(
+            self.VBOX_TLB_GUID,
+            self.VBOX_TLB_LCID,
+            self.VBOX_TLB_MAJOR,
+            self.VBOX_TLB_MINOR,
+        )
 
     def getSessionObject(self):
         import win32com
         from win32com.client import Dispatch
+
         return win32com.client.Dispatch("VirtualBox.Session")
 
     def getVirtualBox(self):
@@ -525,11 +595,14 @@ class PlatformMSCOM(PlatformBase):
         if self.oClient is None:
             import win32com
             from win32com.client import Dispatch
-            self.oClient = win32com.client.Dispatch("VirtualBox.VirtualBoxClient")
+
+            self.oClient = win32com.client.Dispatch(
+                "VirtualBox.VirtualBoxClient"
+            )
         return self.oClient.virtualBox
 
     def getType(self):
-        return 'MSCOM'
+        return "MSCOM"
 
     def getArray(self, oInterface, sAttrib):
         return oInterface.__getattr__(sAttrib)
@@ -544,44 +617,53 @@ class PlatformMSCOM(PlatformBase):
         # gets upset.  So, we redo some of the dispatcher work here, picking
         # the missing type information from the getter.
         #
-        oOleObj     = getattr(oInterface, '_oleobj_')
-        aPropMapGet = getattr(oInterface, '_prop_map_get_')
-        aPropMapPut = getattr(oInterface, '_prop_map_put_')
-        sComAttrib  = sAttrib if sAttrib in aPropMapGet else ComifyName(sAttrib)
+        oOleObj = getattr(oInterface, "_oleobj_")
+        aPropMapGet = getattr(oInterface, "_prop_map_get_")
+        aPropMapPut = getattr(oInterface, "_prop_map_put_")
+        sComAttrib = sAttrib if sAttrib in aPropMapGet else ComifyName(sAttrib)
         try:
             aArgs, aDefaultArgs = aPropMapPut[sComAttrib]
-            aGetArgs            = aPropMapGet[sComAttrib]
-        except KeyError: # fallback.
+            aGetArgs = aPropMapGet[sComAttrib]
+        except KeyError:  # fallback.
             return oInterface.__setattr__(sAttrib, aoArray)
 
         import pythoncom
-        oOleObj.InvokeTypes(aArgs[0],                   # dispid
-                            aArgs[1],                   # LCID
-                            aArgs[2],                   # DISPATCH_PROPERTYPUT
-                            (pythoncom.VT_HRESULT, 0),  # retType - or void?
-                            (aGetArgs[2],),             # argTypes - trick: we get the type from the getter.
-                            aoArray,)                   # The array
+
+        oOleObj.InvokeTypes(
+            aArgs[0],  # dispid
+            aArgs[1],  # LCID
+            aArgs[2],  # DISPATCH_PROPERTYPUT
+            (pythoncom.VT_HRESULT, 0),  # retType - or void?
+            (
+                aGetArgs[2],
+            ),  # argTypes - trick: we get the type from the getter.
+            aoArray,
+        )  # The array
 
     def initPerThread(self):
         import pythoncom
+
         pythoncom.CoInitializeEx(0)
 
     def deinitPerThread(self):
         import pythoncom
+
         pythoncom.CoUninitialize()
 
     def createListener(self, oImplClass, dArgs):
         if True:
-            raise Exception('no active listeners on Windows as PyGatewayBase::QueryInterface() '
-                            'returns new gateway objects all the time, thus breaking EventQueue '
-                            'assumptions about the listener interface pointer being constants between calls ')
+            raise Exception(
+                "no active listeners on Windows as PyGatewayBase::QueryInterface() "
+                "returns new gateway objects all the time, thus breaking EventQueue "
+                "assumptions about the listener interface pointer being constants between calls "
+            )
         # Did this code ever really work?
         d = {}
-        d['BaseClass'] = oImplClass
-        d['dArgs'] = dArgs
-        d['tlb_guid'] = PlatformMSCOM.VBOX_TLB_GUID
-        d['tlb_major'] = PlatformMSCOM.VBOX_TLB_MAJOR
-        d['tlb_minor'] = PlatformMSCOM.VBOX_TLB_MINOR
+        d["BaseClass"] = oImplClass
+        d["dArgs"] = dArgs
+        d["tlb_guid"] = PlatformMSCOM.VBOX_TLB_GUID
+        d["tlb_major"] = PlatformMSCOM.VBOX_TLB_MAJOR
+        d["tlb_minor"] = PlatformMSCOM.VBOX_TLB_MINOR
         str_ = ""
         str_ += "import win32com.server.util\n"
         str_ += "import pythoncom\n"
@@ -599,12 +681,17 @@ class PlatformMSCOM(PlatformBase):
         str_ += "   def __init__(self): BaseClass.__init__(self, dArgs)\n"
         str_ += "result = win32com.server.util.wrap(ListenerImpl())\n"
         exec(str_, d, d)
-        return d['result']
+        return d["result"]
 
     def waitForEvents(self, timeout):
         from win32api import GetCurrentThreadId
         from win32event import INFINITE
-        from win32event import MsgWaitForMultipleObjects, QS_ALLINPUT, WAIT_TIMEOUT, WAIT_OBJECT_0
+        from win32event import (
+            MsgWaitForMultipleObjects,
+            QS_ALLINPUT,
+            WAIT_TIMEOUT,
+            WAIT_OBJECT_0,
+        )
         from pythoncom import PumpWaitingMessages
         import types
 
@@ -617,7 +704,9 @@ class PlatformMSCOM(PlatformBase):
             cMsTimeout = INFINITE
         else:
             cMsTimeout = timeout
-        rc = MsgWaitForMultipleObjects(self.aoHandles, 0, cMsTimeout, QS_ALLINPUT)
+        rc = MsgWaitForMultipleObjects(
+            self.aoHandles, 0, cMsTimeout, QS_ALLINPUT
+        )
         if WAIT_OBJECT_0 <= rc < WAIT_OBJECT_0 + len(self.aoHandles):
             # is it possible?
             rc = 2
@@ -655,7 +744,7 @@ class PlatformMSCOM(PlatformBase):
         self.fInterrupted = True
         self.oIntCv.release()
         try:
-            PostThreadMessage(self.tid, WM_USER, None, 0xf241b819)
+            PostThreadMessage(self.tid, WM_USER, None, 0xF241B819)
         except:
             return False
         return True
@@ -663,19 +752,20 @@ class PlatformMSCOM(PlatformBase):
     def deinit(self):
         for oHandle in self.aoHandles:
             if oHandle is not None:
-                oHandle.Close();
-        self.oHandle = None;
+                oHandle.Close()
+        self.oHandle = None
 
-        del self.oClient;
-        self.oClient = None;
+        del self.oClient
+        self.oClient = None
 
         # This non-sense doesn't pair up with any pythoncom.CoInitialize[Ex].
         # See @bugref{9037}.
-        #import pythoncom
-        #pythoncom.CoUninitialize()
+        # import pythoncom
+        # pythoncom.CoUninitialize()
 
     def queryInterface(self, oIUnknown, sClassName):
         from win32com.client import CastTo
+
         return CastTo(oIUnknown, sClassName)
 
     def xcptGetStatus(self, oXcpt):
@@ -691,15 +781,20 @@ class PlatformMSCOM(PlatformBase):
 
     def xcptIsDeadInterface(self, oXcpt):
         return self.xcptGetStatus(oXcpt) in [
-            0x800706ba, -2147023174,  # RPC_S_SERVER_UNAVAILABLE.
-            0x800706be, -2147023170,  # RPC_S_CALL_FAILED.
-            0x800706bf, -2147023169,  # RPC_S_CALL_FAILED_DNE.
-            0x80010108, -2147417848,  # RPC_E_DISCONNECTED.
-            0x800706b5, -2147023179,  # RPC_S_UNKNOWN_IF
+            0x800706BA,
+            -2147023174,  # RPC_S_SERVER_UNAVAILABLE.
+            0x800706BE,
+            -2147023170,  # RPC_S_CALL_FAILED.
+            0x800706BF,
+            -2147023169,  # RPC_S_CALL_FAILED_DNE.
+            0x80010108,
+            -2147417848,  # RPC_E_DISCONNECTED.
+            0x800706B5,
+            -2147023179,  # RPC_S_UNKNOWN_IF
         ]
 
     def xcptGetMessage(self, oXcpt):
-        if hasattr(oXcpt, 'excepinfo'):
+        if hasattr(oXcpt, "excepinfo"):
             try:
                 if len(oXcpt.excepinfo) >= 3:
                     sRet = oXcpt.excepinfo[2]
@@ -707,7 +802,7 @@ class PlatformMSCOM(PlatformBase):
                         return sRet[0:]
             except:
                 pass
-        if hasattr(oXcpt, 'strerror'):
+        if hasattr(oXcpt, "strerror"):
             try:
                 sRet = oXcpt.strerror
                 if len(sRet) > 0:
@@ -749,38 +844,47 @@ class PlatformXPCOM(PlatformBase):
         import xpcom.vboxxpcom
         import xpcom
         import xpcom.components
+
         _ = dParams
 
     def getSessionObject(self):
         import xpcom.components
-        return xpcom.components.classes["@virtualbox.org/Session;1"].createInstance()
+
+        return xpcom.components.classes[
+            "@virtualbox.org/Session;1"
+        ].createInstance()
 
     def getVirtualBox(self):
         import xpcom.components
-        client = xpcom.components.classes["@virtualbox.org/VirtualBoxClient;1"].createInstance()
+
+        client = xpcom.components.classes[
+            "@virtualbox.org/VirtualBoxClient;1"
+        ].createInstance()
         return client.virtualBox
 
     def getType(self):
-        return 'XPCOM'
+        return "XPCOM"
 
     def getArray(self, oInterface, sAttrib):
-        return oInterface.__getattr__('get' + ComifyName(sAttrib))()
+        return oInterface.__getattr__("get" + ComifyName(sAttrib))()
 
     def setArray(self, oInterface, sAttrib, aoArray):
-        return oInterface.__getattr__('set' + ComifyName(sAttrib))(aoArray)
+        return oInterface.__getattr__("set" + ComifyName(sAttrib))(aoArray)
 
     def initPerThread(self):
         import xpcom
+
         xpcom._xpcom.AttachThread()
 
     def deinitPerThread(self):
         import xpcom
+
         xpcom._xpcom.DetachThread()
 
     def createListener(self, oImplClass, dArgs):
         d = {}
-        d['BaseClass'] = oImplClass
-        d['dArgs'] = dArgs
+        d["BaseClass"] = oImplClass
+        d["dArgs"] = dArgs
         str = ""
         str += "import xpcom.components\n"
         str += "class ListenerImpl(BaseClass):\n"
@@ -788,35 +892,43 @@ class PlatformXPCOM(PlatformBase):
         str += "   def __init__(self): BaseClass.__init__(self, dArgs)\n"
         str += "result = ListenerImpl()\n"
         exec(str, d, d)
-        return d['result']
+        return d["result"]
 
     def waitForEvents(self, timeout):
         import xpcom
+
         return xpcom._xpcom.WaitForEvents(timeout)
 
     def interruptWaitEvents(self):
         import xpcom
+
         return xpcom._xpcom.InterruptWait()
 
     def deinit(self):
         import xpcom
+
         xpcom._xpcom.DeinitCOM()
 
     def queryInterface(self, oIUnknown, sClassName):
         import xpcom.components
-        return oIUnknown.queryInterface(getattr(xpcom.components.interfaces, sClassName))
+
+        return oIUnknown.queryInterface(
+            getattr(xpcom.components.interfaces, sClassName)
+        )
 
     def xcptGetStatus(self, oXcpt):
         return oXcpt.errno
 
     def xcptIsDeadInterface(self, oXcpt):
         return self.xcptGetStatus(oXcpt) in [
-            0x80004004, -2147467260,  # NS_ERROR_ABORT
-            0x800706be, -2147023170,  # NS_ERROR_CALL_FAILED (RPC_S_CALL_FAILED)
+            0x80004004,
+            -2147467260,  # NS_ERROR_ABORT
+            0x800706BE,
+            -2147023170,  # NS_ERROR_CALL_FAILED (RPC_S_CALL_FAILED)
         ]
 
     def xcptGetMessage(self, oXcpt):
-        if hasattr(oXcpt, 'msg'):
+        if hasattr(oXcpt, "msg"):
             try:
                 sRet = oXcpt.msg
                 if len(sRet) > 0:
@@ -827,10 +939,12 @@ class PlatformXPCOM(PlatformBase):
 
     def xcptGetBaseXcpt(self):
         import xpcom
+
         return xpcom.Exception
 
     def xcptSetupConstants(self, oDst):
         import xpcom
+
         oDst = self.xcptCopyErrorConstants(oDst, xpcom.nsError)
 
         # COM compatability constants.
@@ -856,7 +970,9 @@ class PlatformWEBSERVICE(PlatformBase):
     def __init__(self, dParams):
         PlatformBase.__init__(self, dParams)
         # Import web services stuff.  Fix the sys.path the first time.
-        sWebServLib = os.path.join(VBoxSdkDir, 'bindings', 'webservice', 'python', 'lib')
+        sWebServLib = os.path.join(
+            VBoxSdkDir, "bindings", "webservice", "python", "lib"
+        )
         if sWebServLib not in sys.path:
             sys.path.append(sWebServLib)
         import VirtualBox_wrappers
@@ -885,10 +1001,10 @@ class PlatformWEBSERVICE(PlatformBase):
         return self.connect(self.url, self.user, self.password)
 
     def getType(self):
-        return 'WEBSERVICE'
+        return "WEBSERVICE"
 
     def isRemote(self):
-        """ Returns True if remote VBox host, False if local. """
+        """Returns True if remote VBox host, False if local."""
         return True
 
     def getArray(self, oInterface, sAttrib):
@@ -913,13 +1029,13 @@ class PlatformWEBSERVICE(PlatformBase):
 
     def queryInterface(self, oIUnknown, sClassName):
         d = {}
-        d['oIUnknown'] = oIUnknown
+        d["oIUnknown"] = oIUnknown
         str = ""
         str += "from VirtualBox_wrappers import " + sClassName + "\n"
         str += "result = " + sClassName + "(oIUnknown.mgr, oIUnknown.handle)\n"
         # wrong, need to test if class indeed implements this interface
         exec(str, d, d)
-        return d['result']
+        return d["result"]
 
     #
     # Web service specific methods.
@@ -942,7 +1058,9 @@ class PlatformWEBSERVICE(PlatformBase):
         self.wsmgr = IWebsessionManager2(self.url)
         self.vbox = self.wsmgr.logon(self.user, self.password)
         if not self.vbox.handle:
-            raise Exception("cannot connect to '" + self.url + "' as '" + self.user + "'")
+            raise Exception(
+                "cannot connect to '" + self.url + "' as '" + self.user + "'"
+            )
         return self.vbox
 
     def disconnect(self):
@@ -980,18 +1098,18 @@ class VirtualBoxManager(object):
 
     def __init__(self, sStyle=None, dPlatformParams=None):
         if sStyle is None:
-            if sys.platform == 'win32':
+            if sys.platform == "win32":
                 sStyle = "MSCOM"
             else:
                 sStyle = "XPCOM"
-        if sStyle == 'XPCOM':
+        if sStyle == "XPCOM":
             self.platform = PlatformXPCOM(dPlatformParams)
-        elif sStyle == 'MSCOM':
+        elif sStyle == "MSCOM":
             self.platform = PlatformMSCOM(dPlatformParams)
-        elif sStyle == 'WEBSERVICE':
+        elif sStyle == "WEBSERVICE":
             self.platform = PlatformWEBSERVICE(dPlatformParams)
         else:
-            raise Exception('Unknown sStyle=%s' % (sStyle,))
+            raise Exception("Unknown sStyle=%s" % (sStyle,))
         self.style = sStyle
         self.type = self.platform.getType()
         self.remote = self.platform.isRemote()
@@ -999,14 +1117,16 @@ class VirtualBoxManager(object):
         self.constants = VirtualBoxReflectionInfo(sStyle == "WEBSERVICE")
 
         ## Status constants.
-        self.statuses = self.platform.xcptSetupConstants(VirtualBoxManager.Statuses())
+        self.statuses = self.platform.xcptSetupConstants(
+            VirtualBoxManager.Statuses()
+        )
         ## @todo Add VBOX_E_XXX to statuses? They're already in constants...
         ## Dictionary for errToString, built on demand.
         self._dErrorValToName = None
 
         ## Dictionary for resolving enum values to names, two levels of dictionaries.
         ## First level is indexed by enum name, the next by value.
-        self._ddEnumValueToName = {};
+        self._ddEnumValueToName = {}
 
         ## The exception class for the selected platform.
         self.oXcptClass = self.platform.xcptGetBaseXcpt()
@@ -1047,48 +1167,48 @@ class VirtualBoxManager(object):
     # Wrappers for self.platform methods.
     #
     def getVirtualBox(self):
-        """ See PlatformBase::getVirtualBox(). """
+        """See PlatformBase::getVirtualBox()."""
         return self.platform.getVirtualBox()
 
-    def getSessionObject(self, oIVBox = None):
-        """ See PlatformBase::getSessionObject(). """
+    def getSessionObject(self, oIVBox=None):
+        """See PlatformBase::getSessionObject()."""
         # ignore parameter which was never needed
         _ = oIVBox
         return self.platform.getSessionObject()
 
     def getArray(self, oInterface, sAttrib):
-        """ See PlatformBase::getArray(). """
+        """See PlatformBase::getArray()."""
         return self.platform.getArray(oInterface, sAttrib)
 
     def setArray(self, oInterface, sAttrib, aoArray):
-        """ See PlatformBase::setArray(). """
+        """See PlatformBase::setArray()."""
         return self.platform.setArray(oInterface, sAttrib, aoArray)
 
     def createListener(self, oImplClass, dArgs=None):
-        """ See PlatformBase::createListener(). """
+        """See PlatformBase::createListener()."""
         return self.platform.createListener(oImplClass, dArgs)
 
     def waitForEvents(self, cMsTimeout):
-        """ See PlatformBase::waitForEvents(). """
+        """See PlatformBase::waitForEvents()."""
         return self.platform.waitForEvents(cMsTimeout)
 
     def interruptWaitEvents(self):
-        """ See PlatformBase::interruptWaitEvents(). """
+        """See PlatformBase::interruptWaitEvents()."""
         return self.platform.interruptWaitEvents()
 
     def queryInterface(self, oIUnknown, sClassName):
-        """ See PlatformBase::queryInterface(). """
+        """See PlatformBase::queryInterface()."""
         return self.platform.queryInterface(oIUnknown, sClassName)
 
     #
     # Init and uninit.
     #
     def initPerThread(self):
-        """ See PlatformBase::deinitPerThread(). """
+        """See PlatformBase::deinitPerThread()."""
         self.platform.initPerThread()
 
     def deinitPerThread(self):
-        """ See PlatformBase::deinitPerThread(). """
+        """See PlatformBase::deinitPerThread()."""
         return self.platform.deinitPerThread()
 
     def deinit(self):
@@ -1148,33 +1268,41 @@ class VirtualBoxManager(object):
         global VBoxSdkDir
         return VBoxSdkDir
 
-    def getEnumValueName(self, sEnumTypeNm, oEnumValue, fTypePrefix = False):
+    def getEnumValueName(self, sEnumTypeNm, oEnumValue, fTypePrefix=False):
         """
         Returns the name (string) for the corresponding enum value.
         """
         # Cache lookup:
-        dValueNames = self._ddEnumValueToName.get(sEnumTypeNm);
+        dValueNames = self._ddEnumValueToName.get(sEnumTypeNm)
         if dValueNames is not None:
-            sValueName = dValueNames.get(oEnumValue);
+            sValueName = dValueNames.get(oEnumValue)
             if sValueName:
-                return sValueName if not fTypePrefix else '%s_%s' % (sEnumTypeNm, sValueName);
+                return (
+                    sValueName
+                    if not fTypePrefix
+                    else "%s_%s" % (sEnumTypeNm, sValueName)
+                )
         else:
             # Cache miss. Build the reverse lookup dictionary and add it to the cache:
-            dNamedValues = self.constants.all_values(sEnumTypeNm);
+            dNamedValues = self.constants.all_values(sEnumTypeNm)
             if len(dNamedValues) > 0:
 
-                dValueNames = dict();
+                dValueNames = dict()
                 for sName in dNamedValues:
-                    dValueNames[dNamedValues[sName]] = sName;
-                self._ddEnumValueToName[sEnumTypeNm] = dValueNames;
+                    dValueNames[dNamedValues[sName]] = sName
+                self._ddEnumValueToName[sEnumTypeNm] = dValueNames
 
                 # Lookup the value:
-                sValueName = dValueNames.get(oEnumValue);
+                sValueName = dValueNames.get(oEnumValue)
                 if sValueName:
-                    return sValueName if not fTypePrefix else '%s_%s' % (sEnumTypeNm, sValueName);
+                    return (
+                        sValueName
+                        if not fTypePrefix
+                        else "%s_%s" % (sEnumTypeNm, sValueName)
+                    )
 
         # Fallback:
-        return '%s_Unknown_%s' % (sEnumTypeNm, oEnumValue);
+        return "%s_Unknown_%s" % (sEnumTypeNm, oEnumValue)
 
     #
     # Error code utilities.
@@ -1205,7 +1333,9 @@ class VirtualBoxManager(object):
         the exception parameter isn't specified, the current exception is
         examined.
         """
-        if self.oXcptClass is None:  # @todo find the exception class for web services!
+        if (
+            self.oXcptClass is None
+        ):  # @todo find the exception class for web services!
             return False
         if oXcpt is None:
             oXcpt = sys.exc_info()[1]
@@ -1254,8 +1384,17 @@ class VirtualBoxManager(object):
                     if isinstance(oValue, (int, long)):
                         dErrorValToName[int(oValue)] = sKey
             # Always prefer the COM names (see aliasing in platform specific code):
-            for sKey in ('S_OK', 'E_FAIL', 'E_ABORT', 'E_POINTER', 'E_NOINTERFACE', 'E_INVALIDARG',
-                         'E_OUTOFMEMORY', 'E_NOTIMPL', 'E_UNEXPECTED',):
+            for sKey in (
+                "S_OK",
+                "E_FAIL",
+                "E_ABORT",
+                "E_POINTER",
+                "E_NOINTERFACE",
+                "E_INVALIDARG",
+                "E_OUTOFMEMORY",
+                "E_NOTIMPL",
+                "E_UNEXPECTED",
+            ):
                 oValue = getattr(self.statuses, sKey, None)
                 if oValue is not None:
                     dErrorValToName[oValue] = sKey
@@ -1266,7 +1405,7 @@ class VirtualBoxManager(object):
             sStr = self._dErrorValToName[int(hrStatus)]
         except KeyError:
             hrLong = long(hrStatus)
-            sStr = '%#x (%d)' % (hrLong & 0xffffffff, hrLong)
+            sStr = "%#x (%d)" % (hrLong & 0xFFFFFFFF, hrLong)
         return sStr
 
     def xcptGetMessage(self, oXcpt=None):
@@ -1280,4 +1419,3 @@ class VirtualBoxManager(object):
         if sRet is None:
             sRet = self.xcptToString(oXcpt)
         return sRet
-
